@@ -100,7 +100,7 @@ def ipynb_to_rmd(infile, outfile, header=None):
 
     for cell in node.cells:
         if cell.cell_type == "markdown":
-            result.append(maybe_join(cell.source))
+            result.append(ipynb_rmd_img(maybe_join(cell.source)))
         elif cell.cell_type == "code":
             if 'Rmd_chunk_options' in cell.metadata:
                 start = "```{{r, {0}}}".format(cell.metadata["Rmd_chunk_options"])
@@ -223,7 +223,7 @@ def rmd_to_ipynb(infile, outfile):
                 if re_code_inline.search(l):
                     print("Inline R code detected - treated as text")
                 # cell.source in ipynb does not include implicit newlines
-                celldata.append(l.rstrip() + "\n")
+                celldata.append(rmd_to_ipynb_img(l.rstrip()) + "\n")
         else:  # CODE
             if re_code_end.match(l):
                 state = MD
@@ -328,3 +328,44 @@ def spin_to_ipynb(infile, outfile):
         nbformat.write(node, outfile)
 
     return True
+
+
+re_rmd_img = re.compile(r"(!\[([^\]]*)\]\(([^\)]*)\)\{(.+?)\})")
+re_ipy_img = re.compile(r"(<img ([^>]*?)(?:/>|>(.*?)</img>))")
+
+
+def rmd_to_ipynb_img(para):
+    for (match, tag, link, opts) in re_rmd_img.findall(para):
+        w = re.search(r"width\s*=\s*(\S*)", opts)
+        h = re.search(r"height\s*=\s*(\S*)", opts)
+        width = "width: %s;" % w.group(1) if w else ""
+        height = "height: %s;" % h.group(1) if h else ""
+        style_opts = " style=\"%s%s\"" % (width, height) if w or h else ""
+
+        if tag:
+            para = para.replace(
+                match,
+                "<img src=\"%s\"%s>%s</img>" % (link, style_opts, tag))
+        else:
+            para = para.replace(
+                match,
+                "<img src=\"%s\"%s />" % (link, style_opts))
+    return para
+
+
+def ipynb_rmd_img(para):
+    for (match, opts, tag) in re_ipy_img.findall(para):
+        tag = tag if tag else ""
+        l = re.search(r"""src\s*=\s*["'](\S*?)["']""", opts)
+        w = re.search(r"""width\s*[=:]\s*["']?(\S+?)["'; ]""", opts)
+        h = re.search(r"""height\s*[=:]\s*["']?(\S+?)["'; ]""", opts)
+        style_opts = ""
+        style_opts = "width=%s" % w.group(1) if w else ""
+        if h:
+            if style_opts:
+                style_opts = style_opts + " "
+            style_opts = style_opts + "height=%s" % h.group(1)
+        para = para.replace(
+            match,
+            "![%s](%s){%s}" % (tag, l.group(1), style_opts))
+    return para
