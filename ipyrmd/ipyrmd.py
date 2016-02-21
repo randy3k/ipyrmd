@@ -17,6 +17,8 @@ TODO:
 import nbformat
 import yaml
 import re
+import subprocess
+import os
 
 # cell.source can be either "source" or ["source", "source"]
 # notebook does not insert implicit newlines in the list case
@@ -328,6 +330,24 @@ def spin_to_ipynb(infile, outfile):
         nbformat.write(node, outfile)
 
     return True
+
+
+def ipynb_to_pdf(infile, outfile):
+    temp_rmd_file = infile + ".Rmd"
+    ipynb_to_rmd(infile, temp_rmd_file)
+    p = subprocess.Popen(
+        ["Rscript", "-e", "library(rmarkdown); render(\"%s\", output_file=\"%s\")" %
+            (temp_rmd_file, outfile)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    _, stderrdata = p.communicate()
+
+    if stderrdata:
+        stderrdata = stderrdata.decode("utf-8")
+        print(stderrdata)
+
+    if os.path.exists(temp_rmd_file):
+        os.unlink(temp_rmd_file)
 
 
 re_rmd_img = re.compile(r"(!\[([^\]]*)\]\(([^\)]*)\)\{(.+?)\})")
