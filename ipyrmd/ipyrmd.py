@@ -336,7 +336,8 @@ def ipynb_to_pdf(infile, outfile):
     temp_rmd_file = infile + ".Rmd"
     ipynb_to_rmd(infile, temp_rmd_file)
     p = subprocess.Popen(
-        ["Rscript", "-e", "library(rmarkdown); render(\"%s\", output_file=\"%s\")" %
+        ["Rscript", "-e", "library(rmarkdown); "
+            "render(\"%s\", output_format=\"pdf_document\", output_file=\"%s\")" %
             (temp_rmd_file, outfile)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
